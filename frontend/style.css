@@ -18,6 +18,27 @@ h1 {
   color: lightpink;
 }
 
+#tasks {
+  list-style: none;
+  padding: 0;
+}
+
+#tasks li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #f3a9b7;
+}
+
+#tasks li .delete {
+  background: none;
+  border: none;
+  color: red;
+  font-size: 16px;
+  cursor: pointer;
+}
+
 #form {
   display: flex;
   margin-top: 1rem;
