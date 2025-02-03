@@ -1,0 +1,45 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background: rgb(255, 228, 233);
+}
+
+.container {
+  max-width: 600px;
+  margin: 50px auto;
+  padding: 1rem;
+  background: #fff;
+  box-shadow: 0 0 10px pink;
+}
+
+h1 {
+  text-align: center;
+  color: lightpink;
+}
+
+#form {
+  display: flex;
+  margin-top: 1rem;
+}
+
+#taskInput {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid lightpink;
+  border-radius: 3px;
+  margin-right: 10px;
+}
+
+#form button {
+  padding: 10px 20px;
+  border: none;
+  background: lightpink;
+  color: #fff;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#form button:hover {
+  background: rgb(253, 202, 211);
+}
