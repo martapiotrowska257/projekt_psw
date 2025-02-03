@@ -12,7 +12,6 @@ next_id = 1 # licznik do nadawania kolejnych identyfikatorów zadań
 # region CRUD
 # ---------------------------
 
-
 # Tworzenie nowego zadania
 @app.route('/todos', methods=['POST'])
 def create_todo():
@@ -89,7 +88,6 @@ def index():
 def static_files(path):
     return send_from_directory(app.static_folder, path)
 
-
 @socketio.on('connect')
 def on_connect():
     print('Klient połączony')
@@ -99,5 +97,10 @@ def on_disconnect():
     print('Klient rozłączony')
 
 
-if __name__ == '__main__':
-    socketio.run(app, debug=True, port=3000)
+if __name__ == "__main__":
+    url = f"http://127.0.0.1:3000"
+    print(f"Serwer działa na: {url}")
+    socketio.run(app, host="0.0.0.0", port=3000)
+
+
+
