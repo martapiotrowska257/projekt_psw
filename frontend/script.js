@@ -2,12 +2,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const tasksList = document.getElementById("tasks");
   const form = document.getElementById("form");
   const taskInput = document.getElementById("taskInput");
-  const allTasksButton = document.getElementById("showAllTasks");
+  const logoutButton = document.getElementById("logoutButton");
 
   const socket = io();
 
   form.addEventListener("submit", (event) => {
     event.preventDefault(); // zapobiegamy domyślnemu przeładowaniu strony
+
+    // przycisk wylogowania
+    if (logoutButton) {
+      logoutButton.addEventListener("click", function () {
+        window.location.href = "/logout"; // Przekierowanie na /logout
+      });
+    }
 
     const taskText = taskInput.value.trim();
     if (taskText === "") return;

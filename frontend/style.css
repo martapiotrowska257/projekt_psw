@@ -5,6 +5,22 @@ body {
   background: rgb(255, 228, 233);
 }
 
+nav {
+  background: lightpink;
+  padding: 1rem;
+}
+
+nav #logoutButton {
+  background: rgb(255, 228, 233);
+  color: lightpink;
+  padding: 10px 20px;
+  font-weight: bold;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
 .container {
   max-width: 600px;
   margin: 50px auto;
