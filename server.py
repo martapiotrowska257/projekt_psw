@@ -15,25 +15,42 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# ---------------------------
+#  region MODELE
+# ---------------------------
+
+# MODEL ZADANIA – dane przechowywane w bazie
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', back_populates='tasks')
+
 # MODEL UŻYTKOWNIKA – dane przechowywane w bazie
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    
+    tasks = db.relationship('Task', back_populates='user', cascade="all, delete-orphan")
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-# tworzenie tabeli użytkowników w bazie
+# tworzenie tabeli zadań i użytkowników w bazie
 with app.app_context():
     db.create_all()
 
+# ---------------------------
+# endregion MODELE
+# ---------------------------
 
-tasks = [] # pusta lista, w której będą przechowywane zadania
-next_id = 1 # licznik do nadawania kolejnych identyfikatorów zadań
+
+# tasks = [] # pusta lista, w której będą przechowywane zadania
+# next_id = 1 # licznik do nadawania kolejnych identyfikatorów zadań
 
 # ---------------------------
 # Rejestracja
@@ -94,62 +111,78 @@ def logout():
 # Tworzenie nowego zadania
 @app.route('/todos', methods=['POST'])
 def create_todo():
-    global next_id
+    # global next_id
     data = request.get_json()
     title = data.get('title')
     if not title:
         return jsonify({'error': 'Brakuje tytułu zadania'}), 400
-    new_task = {'id': next_id, 'title': title, 'completed': False}
-    next_id += 1
-    tasks.append(new_task)
     
-    socketio.emit('todo created', new_task)
+    # szukanie użytkownika w bazie
+    user = User.query.filter_by(username=session['username']).first()
+
+    # tworzenie nowego zadania w bazie
+    new_task = Task(title=title, user_id=user.id)
+    db.session.add(new_task)
+    db.session.commit()
+    
+    socketio.emit('todo created', {'id': new_task.id, 'title': new_task.title, 'completed': new_task.completed, 'user_id': new_task.user_id})
     print(f'Wysłano zadanie: {new_task}')
-    return jsonify(new_task), 201
+    return jsonify({'id': new_task.id, 'title': new_task.title, 'completed': new_task.completed}), 201
 
 # Pobieranie wszystkich zadań
 @app.route('/todos', methods=['GET'])
 def get_todos():
-    return jsonify(tasks)
+    user = User.query.filter_by(username=session['username']).first()
+    tasks = Task.query.filter_by(user_id=user.id).all()  # pobieramy zadania przypisane do użytkownika
+    return jsonify([{'id': task.id, 'title': task.title, 'completed': task.completed} for task in tasks])
 
 # Pobieranie pojedynczego zadania
 @app.route('/todos/<int:task_id>', methods=['GET'])
 def get_todo(task_id):
-    task = next((t for t in tasks if t['id'] == task_id), None)
+    user = User.query.filter_by(username=session['username']).first()
+    task = Task.query.filter_by(id=task_id, user_id=user.id).first()  # sprawdzamy, czy zadanie należy do tego użytkownika
     if task is None:
         return jsonify({'error': 'Nie znaleziono zadania'}), 404
-    return jsonify(task)
+    return jsonify({'id': task.id, 'title': task.title, 'completed': task.completed})
 
 # Aktualizacja zadania
 @app.route('/todos/<int:task_id>', methods=['PUT'])
 def update_todo(task_id):
     data = request.get_json()
-    task = next((t for t in tasks if t['id'] == task_id), None)
+    user = User.query.filter_by(username=session['username']).first()
+    task = Task.query.filter_by(id=task_id, user_id=user.id).first()
     if task is None:
         return jsonify({'error': 'Nie znaleziono zadania'}), 404
+    
     title = data.get('title')
     completed = data.get('completed')
+
     if title is not None:
-        task['title'] = title
+        task.title = title
     if completed is not None:
-        task['completed'] = completed
-    
-    socketio.emit('todo updated', task)
+        task.completed = completed
+
+    db.session.commit()  # Zapisujemy zmiany w bazie danych
+
+
+    socketio.emit('todo updated', {'id': task.id, 'title': task.title, 'completed': task.completed, 'user_id': task.user_id})
     print(f'Zmieniono status zadania: {task}')
-    return jsonify(task)
+    return jsonify({'id': task.id, 'title': task.title, 'completed': task.completed})
 
 # Usuwanie zadania
 @app.route('/todos/<int:task_id>', methods=['DELETE'])
 def delete_todo(task_id):
-    global tasks
-    task = next((t for t in tasks if t['id'] == task_id), None)
+    user = User.query.filter_by(username=session['username']).first()
+    task = Task.query.filter_by(id=task_id, user_id=user.id).first()
     if task is None:
         return jsonify({'error': 'Nie znaleziono zadania'}), 404
-    tasks = [t for t in tasks if t['id'] != task_id]
     
-    socketio.emit('todo deleted', task)
+    db.session.delete(task)  # Usuwamy zadanie z bazy danych
+    db.session.commit()
+    
+    socketio.emit('todo deleted', {'id': task.id, 'title': task.title, 'completed': task.completed, 'user_id': task.user_id})
     print(f'Usunięto zadanie: {task}')
-    return jsonify(task)
+    return jsonify({'id': task.id, 'title': task.title, 'completed': task.completed})
 
 
 # ---------------------------
