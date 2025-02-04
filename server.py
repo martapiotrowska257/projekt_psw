@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, render_template
 from flask_socketio import SocketIO, emit
 import os
 
@@ -30,7 +30,8 @@ def create_todo():
 # Pobieranie wszystkich zadań
 @app.route('/todos', methods=['GET'])
 def get_todos():
-    return jsonify(tasks)
+    # return jsonify(tasks)
+    return render_template('index.html', tasks=tasks)
 
 # Pobieranie pojedynczego zadania
 @app.route('/todos/<int:task_id>', methods=['GET'])

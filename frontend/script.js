@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const tasksList = document.getElementById("tasks");
   const form = document.getElementById("form");
   const taskInput = document.getElementById("taskInput");
+  const allTasksButton = document.getElementById("showAllTasks");
 
   const socket = io();
 
@@ -59,12 +60,21 @@ document.addEventListener("DOMContentLoaded", () => {
     fetch("/todos")
       .then((response) => response.json())
       .then((tasks) => {
-        // Wyczyść listę zadań przed dodaniem pobranych elementów
-        tasksList.innerHTML = "";
-        tasks.forEach((task) => addTaskToDOM(task));
+        console.log("Załadowano zadania:", tasks);
+        tasksList.innerHTML = ""; // Czyścimy listę przed dodaniem nowych elementów
+        tasks.forEach((task) => {
+          console.log("Dodaję zadanie do DOM:", task);
+          addTaskToDOM(task);
+        });
       })
       .catch((error) => console.error("Error loading tasks:", error));
   }
+
+  // obsługa przycisku "Pokaż wszystkie zadania"
+  allTasksButton.addEventListener("click", () => {
+    console.log("Pobieram wszystkie zadania...");
+    loadTasks();
+  });
 
   // nasłuchiwanie zdarzenia "todo created" z backendu
   socket.on("todo created", (task) => {
