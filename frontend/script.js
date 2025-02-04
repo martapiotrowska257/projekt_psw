@@ -6,15 +6,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const socket = io();
 
+  // przycisk wylogowania
+  if (logoutButton) {
+    logoutButton.addEventListener("click", function () {
+      window.location.href = "/logout"; // Przekierowanie na /logout
+    });
+  }
+
   form.addEventListener("submit", (event) => {
     event.preventDefault(); // zapobiegamy domyślnemu przeładowaniu strony
-
-    // przycisk wylogowania
-    if (logoutButton) {
-      logoutButton.addEventListener("click", function () {
-        window.location.href = "/logout"; // Przekierowanie na /logout
-      });
-    }
 
     const taskText = taskInput.value.trim();
     if (taskText === "") return;

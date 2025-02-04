@@ -8,7 +8,7 @@ app = Flask(__name__, static_folder='frontend')
 socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = os.urandom(24)  # Losowy klucz, używany do podpisywania ciasteczek sesyjnych
 
-users = {}
+users = {} # słownik, w którym kluczem jest nazwa użytkownika, a wartością zahaszowane hasło
 
 tasks = [] # pusta lista, w której będą przechowywane zadania
 next_id = 1 # licznik do nadawania kolejnych identyfikatorów zadań
