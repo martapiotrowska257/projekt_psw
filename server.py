@@ -19,7 +19,7 @@ next_id = 1 # licznik do nadawania kolejnych identyfikatorów zadań
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
-        return render_template("register.html")
+        return send_from_directory(app.static_folder, 'register.html')
     else:
         username = request.form.get('username')
         password = request.form.get('password')
@@ -36,7 +36,7 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        return render_template("login.html")
+        return send_from_directory(app.static_folder, 'login.html')  # Pobiera plik z frontend
     else:
         username = request.form.get('username')
         password = request.form.get('password')
@@ -121,7 +121,9 @@ def delete_todo(task_id):
 # główna strona - zwraca index.html z folderu frontend
 @app.route('/')
 def index():
-    return send_from_directory(app.static_folder, 'index.html')
+    if 'username' not in session:
+        return redirect(url_for('login'))  # wymuszenie logowania
+    return send_from_directory(app.static_folder, 'index.html') # jeśli użytkownik jest zalogowany, zwraca stronę główną
 
 # pozostałe pliki statyczne (tj. style.css, script.js)
 @app.route('/<path:path>')
