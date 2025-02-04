@@ -30,8 +30,7 @@ def create_todo():
 # Pobieranie wszystkich zadań
 @app.route('/todos', methods=['GET'])
 def get_todos():
-    # return jsonify(tasks)
-    return render_template('index.html', tasks=tasks)
+    return jsonify(tasks)
 
 # Pobieranie pojedynczego zadania
 @app.route('/todos/<int:task_id>', methods=['GET'])

@@ -31,12 +31,35 @@ h1 {
   border-bottom: 1px solid #f3a9b7;
 }
 
+#tasks li span {
+  flex: 1;
+}
+
+.buttons {
+  display: flex;
+  gap: 5px;
+}
+
+#tasks li .toggle {
+  background: none;
+  border: none;
+  color: green;
+  font-size: 16px;
+  cursor: pointer;
+  margin-right: 5px;
+}
+
 #tasks li .delete {
   background: none;
   border: none;
   color: red;
   font-size: 16px;
   cursor: pointer;
+}
+
+.completed {
+  text-decoration: line-through;
+  color: grey;
 }
 
 #form {
