@@ -1,12 +1,52 @@
-from flask import Flask, jsonify, request, send_from_directory, render_template
+from flask import Flask, jsonify, request, send_from_directory, render_template, session, redirect, url_for
 from flask_socketio import SocketIO, emit
 import os
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 app = Flask(__name__, static_folder='frontend')
 socketio = SocketIO(app, cors_allowed_origins="*")
+app.secret_key = os.urandom(24)  # Losowy klucz, używany do podpisywania ciasteczek sesyjnych
+
+users = {}
 
 tasks = [] # pusta lista, w której będą przechowywane zadania
 next_id = 1 # licznik do nadawania kolejnych identyfikatorów zadań
+
+# ---------------------------
+# Rejestracja
+# ---------------------------
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'GET':
+        return render_template("register.html")
+    else:
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if not username or not password:
+            return "Username and password required", 400
+        if username in users:
+            return "User already exists", 400
+        users[username] = generate_password_hash(password)
+        return redirect(url_for('login'))
+
+# ---------------------------
+# Logowanie
+# ---------------------------
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        return render_template("login.html")
+    else:
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if not username or not password:
+            return "Username and password required", 400
+        if username not in users or not check_password_hash(users[username], password):
+            return "Invalid username or password", 401
+        session['username'] = username
+        return redirect(url_for('index'))
+
 
 # ---------------------------
 # region CRUD
