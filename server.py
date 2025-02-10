@@ -34,11 +34,30 @@ class User(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     tasks = db.relationship('Task', back_populates='user', cascade="all, delete-orphan")
 
+    # sesje stworzone przez użytkownika
+    sessions = db.relationship('Session', back_populates='owner', cascade="all, delete-orphan")
+
+    # sesje do których użytkownik dołączył - relacja wiele do wielu
+    joined_sessions = db.relationship('Session', secondary='session_users', back_populates='users')
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+# MODEL SESJI - dane przechowywane w bazie
+class Session(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False) # nazwa sesji
+    is_private = db.Column(db.Boolean, default=True) # czy sesja jest prywatna
+
+
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    owner = db.relationship('User', back_populates='session')
+
+    # użytkownicy należący do sesji - relacja wiele do wielu
+    users = db.relationship('User', secondary='session_users', back_populates='joined_sessions')
 
 # tworzenie tabeli zadań i użytkowników w bazie
 with app.app_context():
@@ -95,7 +114,7 @@ def login():
     return redirect(url_for('index'))
 
 # ---------------------------
-# Wyogowanie
+# Wylogowanie
 # ---------------------------
 
 @app.route('/logout')
@@ -105,7 +124,54 @@ def logout():
 
 
 # ---------------------------
-# region CRUD
+# region WYBÓR SESJI - PRYWATNA / GRUPOWA
+# ---------------------------
+
+@app.route('/sessions', methods=['GET', 'POST'])
+def choose_session():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.filter_by(username=session['username']).first()
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    if request.method == 'GET':
+        return jsonify({'session': user.session}) # pobieramy aktualny typ sesji
+    
+    data = request.get_json()
+    session_type = data.get('type')
+
+    if session_type not in ['private', 'group']:
+        return jsonify({'error': 'Invalid session type'}), 400
+    
+    user.session = session_type
+    db.session.commit()
+    return jsonify({'session': user.session}) # potwierdzamy zmianę sesji
+
+
+# ---------------------------
+# endregion
+# ---------------------------
+
+
+# ---------------------------
+# region WYSZUKIWANIE WZORCÓW
+# ---------------------------
+
+# @app.route('/todos', methods=['GET'])
+# def search():
+#     pass
+
+
+
+# ---------------------------
+# endregion
+# ---------------------------
+
+
+# ---------------------------
+# region CRUD - zadania z todo list
 # ---------------------------
 
 # Tworzenie nowego zadania
