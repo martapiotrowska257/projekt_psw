@@ -8,7 +8,7 @@ import os
 app = Flask(__name__, static_folder='frontend')
 
 app.config['SECRET_KEY'] = os.urandom(24)  # klucz tajny dla sesji - podpisywanie ciasteczek
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'  # baza SQLite dla użytkowników
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'  # baza SQLite dla użytkowników, zadań i sesji
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
@@ -25,7 +25,10 @@ class Task(db.Model):
     title = db.Column(db.String(200), nullable=False)
     completed = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=True)
     user = db.relationship('User', back_populates='tasks')
+    session = db.relationship('Session', back_populates='tasks')
+
 
 # MODEL UŻYTKOWNIKA – dane przechowywane w bazie
 class User(db.Model):
@@ -46,18 +49,30 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+
 # MODEL SESJI - dane przechowywane w bazie
 class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False) # nazwa sesji
     is_private = db.Column(db.Boolean, default=True) # czy sesja jest prywatna
 
-
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # właściciel sesji
     owner = db.relationship('User', back_populates='session')
+
+    # zadania przypisane do sesji
+    tasks = db.relationship('Task', back_populates='session', cascade="all, delete-orphan")
 
     # użytkownicy należący do sesji - relacja wiele do wielu
     users = db.relationship('User', secondary='session_users', back_populates='joined_sessions')
+
+
+# Tabela pośrednicząca dla relacji wiele-do-wielu między User a Session
+session_users = db.Table('session_users',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('session_id', db.Integer, db.ForeignKey('session.id'), primary_key=True)
+)
 
 # tworzenie tabeli zadań i użytkowników w bazie
 with app.app_context():
