@@ -24,9 +24,9 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     completed = db.Column(db.Boolean, default=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # każde zadanie jest przypisane do sesji
     session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=True)
-    user = db.relationship('User', back_populates='tasks')
     session = db.relationship('Session', back_populates='tasks')
 
 
@@ -35,13 +35,12 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    tasks = db.relationship('Task', back_populates='user', cascade="all, delete-orphan")
+
+    # id sesji, w której aktualnie znajduje się użytkownik
+    current_session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=True)
 
     # sesje stworzone przez użytkownika
     sessions = db.relationship('Session', back_populates='owner', cascade="all, delete-orphan")
-
-    # sesje do których użytkownik dołączył - relacja wiele do wielu
-    joined_sessions = db.relationship('Session', secondary='session_users', back_populates='users')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -50,29 +49,26 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+# tabela łącząca użytkowników z sesjami (relacja wiele do wielu)
+user_sessions = db.Table('user_sessions',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('session_id', db.Integer, db.ForeignKey('session.id'))
+)
+
 # MODEL SESJI - dane przechowywane w bazie
 class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False) # nazwa sesji
     is_private = db.Column(db.Boolean, default=True) # czy sesja jest prywatna
 
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
     # właściciel sesji
-    owner = db.relationship('User', back_populates='session')
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    owner = db.relationship('User', back_populates='sessions')
 
     # zadania przypisane do sesji
     tasks = db.relationship('Task', back_populates='session', cascade="all, delete-orphan")
+    users = db.relationship('User', secondary=user_sessions, back_populates='sessions')
 
-    # użytkownicy należący do sesji - relacja wiele do wielu
-    users = db.relationship('User', secondary='session_users', back_populates='joined_sessions')
-
-
-# Tabela pośrednicząca dla relacji wiele-do-wielu między User a Session
-session_users = db.Table('session_users',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
-    db.Column('session_id', db.Integer, db.ForeignKey('session.id'), primary_key=True)
-)
 
 # tworzenie tabeli zadań i użytkowników w bazie
 with app.app_context():
@@ -152,17 +148,42 @@ def choose_session():
         return jsonify({'error': 'User not found'}), 404
 
     if request.method == 'GET':
-        return jsonify({'session': user.session}) # pobieramy aktualny typ sesji
+        # Pobieramy sesje użytkownika (te, które stworzył + do których dołączył)
+        user_sessions = [{
+            'id': s.id,
+            'name': s.name,
+            'is_private': s.is_private,
+            'owner_id': s.owner_id
+        } for s in user.sessions + user.joined_sessions]
+
+        return jsonify({'sessions': user_sessions})
     
     data = request.get_json()
+
+    session_name = data.get('name')
     session_type = data.get('type')
 
     if session_type not in ['private', 'group']:
         return jsonify({'error': 'Invalid session type'}), 400
     
-    user.session = session_type
-    db.session.commit()
-    return jsonify({'session': user.session}) # potwierdzamy zmianę sesji
+    if request.method == 'POST':
+        # Tworzenie nowej sesji
+        is_private = True if session_type == 'private' else False
+        new_session = Session(name=session_name, is_private=is_private, owner=user)
+        
+        # Jeśli sesja jest publiczna, dodajemy użytkownika do niej
+        if not is_private:
+            new_session.users.append(user)
+
+        db.session.add(new_session)
+        db.session.commit()
+
+        return jsonify({
+            'id': new_session.id,
+            'name': new_session.name,
+            'is_private': new_session.is_private,
+            'owner_id': new_session.owner_id
+        }), 201
 
 
 # ---------------------------
