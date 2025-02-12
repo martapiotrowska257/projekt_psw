@@ -202,7 +202,7 @@ def create_session():
     is_private = True if session_type == 'private' else False
     new_session = Session(name=session_name, is_private=is_private, owner=user)
 
-    print(f"Creating session: {session_name} | Type: {session_type} | Is Private: {is_private}")
+    print(f"Creating session: {session_name} | Type: {session_type} | Is Private: {is_private}\n")
 
     db.session.add(new_session)
     db.session.commit()
@@ -212,6 +212,10 @@ def create_session():
         print("Adding owner to group session.")
         new_session.joined_users.append(user)
         db.session.commit()
+
+    # zapisywanie logów do pliku
+    with open('log.txt', 'a') as file:
+        file.write(f"New session created: {new_session.name}\n")
 
     print(f'New session created: {new_session.name}')
 
@@ -264,8 +268,6 @@ def join_session(session_id):
 # ---------------------------
 
 
-
-
 # ---------------------------
 # region CRUD - zadania z todo list
 # ---------------------------
@@ -296,7 +298,12 @@ def create_todo():
         'completed': new_task.completed,
         'session_id': new_task.session_id
     })
-    print(f'Wysłano zadanie: {new_task}')
+
+    with open('log.txt', 'a') as file:
+        file.write(f'Wysłano zadanie o tytule {new_task.title} i id {new_task.id}\n')
+
+    print(f'Wysłano zadanie o tytule {new_task.title} i id {new_task.id}')
+
     return jsonify({
         'id': new_task.id,
         'title': new_task.title,

@@ -1,0 +1,4 @@
+Wysłano zadanie o tytule task2 i id 12
+New session created: iiii
+Wysłano zadanie o tytule ooo i id 13
+Wysłano zadanie o tytule ppp i id 14
