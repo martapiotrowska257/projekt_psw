@@ -4,19 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sessions</title>
-    <link rel="stylesheet" href="register_and_login.css" />
+    <link rel="stylesheet" href="sessions.css" />
   </head>
   <body>
     <div class="container">
-      <h2>Select a Session</h2>
-      <div id="sessionsList">
-        <!-- Sesje będą dynamicznie dodawane tutaj -->
-      </div>
-      <button id="newPrivateSession">New Private Session</button>
-      <button id="newGroupSession">New Group Session</button>
-      <button id="logoutButton">Logout</button>
+      <h2>Sessions</h2>
+
+      <form id="sessionForm">
+        <label for="session_name">Session Name:</label>
+        <input
+          type="text"
+          id="session_name"
+          name="session_name"
+          required
+        /><br />
+
+        <label for="session_type">Session Type:</label>
+        <select id="session_type" name="session_type">
+          <option value="private">Private</option>
+          <option value="group">Group</option></select
+        ><br />
+
+        <button id="newSessionButton" type="submit">Create Session</button>
+      </form>
+
+      <h3>Your Sessions</h3>
+      <ul id="sessionList"></ul>
+
+      <p><a href="/logout">Logout</a></p>
     </div>
-    <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

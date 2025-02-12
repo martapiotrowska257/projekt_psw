@@ -1,0 +1,96 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background: rgb(255, 228, 233);
+}
+
+.container {
+  max-width: 600px;
+  margin: 50px auto;
+  padding: 1.5rem;
+  background: #fff;
+  box-shadow: 0 0 10px pink;
+  border-radius: 8px;
+  text-align: center;
+}
+
+h2 {
+  color: lightpink;
+  margin-bottom: 20px;
+}
+
+h3 {
+  color: lightpink;
+  margin-top: 30px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+label {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+input,
+select {
+  padding: 10px;
+  border: 1px solid lightpink;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  background: lightpink;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:hover {
+  background: rgb(253, 202, 211);
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  background-color: #f9f9f9;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 5px;
+  text-align: left;
+}
+
+li strong {
+  color: lightpink;
+}
+
+/* For any buttons inside forms (if applicable) */
+form button {
+  width: 100%;
+}
+
+p {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+a {
+  color: lightpink;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+a:hover {
+  text-decoration: underline;
+}

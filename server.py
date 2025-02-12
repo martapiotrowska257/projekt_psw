@@ -1,9 +1,10 @@
-from flask import Flask, jsonify, request, send_from_directory, session, redirect, url_for
+from flask import Flask, jsonify, request, send_from_directory, session, redirect, url_for, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 import os
+
 
 app = Flask(__name__, static_folder='frontend')
 
@@ -91,7 +92,6 @@ class Session(db.Model):
         back_populates='joined_sessions'
     )
 
-
 # tworzenie tabeli zadań i użytkowników w bazie
 with app.app_context():
     db.create_all()
@@ -141,7 +141,7 @@ def login():
     
     session['username'] = username
     session.permanent = True
-    return redirect(url_for('get_sessions'))
+    return redirect(url_for('sessions'))
 
 # ---------------------------
 # Wylogowanie
@@ -152,14 +152,13 @@ def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
-
 # ---------------------------
 # region SESJE - PRYWATNA / GRUPOWA
 # ---------------------------
 
 # pobieranie wszystkich sesji
-@app.route('/sessions', methods=['GET'])
-def get_sessions():
+@app.route('/sessionslist', methods=['GET'])
+def sessionslist():
     if 'username' not in session:
         return redirect(url_for('login'))
     
@@ -167,29 +166,35 @@ def get_sessions():
     if user is None:
         return jsonify({'error': 'User not found'}), 404
     
-    # łączymy sesje, które użytkownik utworzył oraz te, do których dołączył
-    all_sessions = user.owned_sessions + user.joined_sessions
+    all_sessions = Session.query.filter(
+        (Session.is_private == False) | (Session.owner_id == user.id)
+    ).all()
     return jsonify([{
-        'id': s.id,
-        'name': s.name,
-        'is_private': s.is_private,
-        'owner_id': s.owner_id
-    } for s in all_sessions])
+        'name': ses.name,
+        'is_private': ses.is_private,
+    } for ses in all_sessions])
 
+@app.route('/sessions', methods=['GET'])
+def sessions():
+    return send_from_directory(app.static_folder, 'sessions.html')
 
 # tworzenie nowej sesji
 @app.route('/sessions', methods=['POST'])
 def create_session():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
+
     user = User.query.filter_by(username=session['username']).first()
     if user is None:
         return jsonify({'error': 'User not found'}), 404
 
+    # odbieranie danych z formularza
     data = request.get_json()
     session_name = data.get('name')
     session_type = data.get('type')
+
+    if not session_name or not session_type:
+        return jsonify({'error': 'Session name and type are required'}), 400
 
     if session_type not in ['private', 'group']:
         return jsonify({'error': 'Invalid session type'}), 400
@@ -197,17 +202,24 @@ def create_session():
     is_private = True if session_type == 'private' else False
     new_session = Session(name=session_name, is_private=is_private, owner=user)
 
-    # jeśli sesja jest grupowa, dodajemy właściciela do listy użytkowników
-    if not is_private:
-        new_session.users.append(user)
+    print(f"Creating session: {session_name} | Type: {session_type} | Is Private: {is_private}")
 
     db.session.add(new_session)
     db.session.commit()
 
-    # opcjonalnie: ustawiamy current_session_id dla użytkownika, jeśli to prywatna sesja
+    # jeśli sesja jest grupowa, dodajemy właściciela do listy użytkowników
+    if not is_private:
+        print("Adding owner to group session.")
+        new_session.joined_users.append(user)
+        db.session.commit()
+
+    print(f'New session created: {new_session.name}')
+
+    # ustawiamy current_session_id dla użytkownika, jeśli to prywatna sesja
     if is_private:
         user.current_session_id = new_session.id
         db.session.commit()
+        # return redirect(url_for('todos'))
 
     return jsonify({
         'id': new_session.id,
@@ -215,7 +227,6 @@ def create_session():
         'is_private': new_session.is_private,
         'owner_id': new_session.owner_id
     }), 201
-
 
 # dołączanie do sesji grupowej
 @app.route('/sessions/<int:session_id>/join', methods=['POST'])
@@ -253,19 +264,6 @@ def join_session(session_id):
 # ---------------------------
 
 
-# ---------------------------
-# region WYSZUKIWANIE WZORCÓW
-# ---------------------------
-
-# @app.route('/todos', methods=['GET'])
-# def search():
-#     pass
-
-
-
-# ---------------------------
-# endregion
-# ---------------------------
 
 
 # ---------------------------
@@ -307,7 +305,7 @@ def create_todo():
 
 
 # Pobieranie wszystkich zadań
-@app.route('/todos', methods=['GET'])
+@app.route('/todoslist', methods=['GET'])
 def get_todos():
     user = User.query.filter_by(username=session['username']).first()
     if not user or not user.current_session_id:
@@ -319,6 +317,10 @@ def get_todos():
         'title': task.title,
         'completed': task.completed
     } for task in tasks])
+
+@app.route('/todos', methods=['GET'])
+def todos():
+    return send_from_directory(app.static_folder, 'index.html')
 
 # Pobieranie pojedynczego zadania
 @app.route('/todos/<int:task_id>', methods=['GET'])
