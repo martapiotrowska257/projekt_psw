@@ -4,6 +4,7 @@ from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 import os
+import ssl
 
 
 app = Flask(__name__, static_folder='frontend')
@@ -417,10 +418,11 @@ def on_disconnect():
     print('Klient rozłączony')
 
 
-if __name__ == "__main__":
-    url = f"http://127.0.0.1:3000"
-    print(f"Serwer działa na: {url}")
-    socketio.run(app, host="0.0.0.0", port=3000)
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ssl_context.load_cert_chain("C://Marta//Studia//semestr_3//protokoły_sieci_web//projekt//projekt_psw//certyfikat.crt", 
+"C://Marta//Studia//semestr_3//protokoły_sieci_web//projekt//projekt_psw//klucz.key")
 
+if __name__ == "__main__":
+    socketio.run(app, debug=False, host="0.0.0.0", ssl_context=ssl_context)
 
 

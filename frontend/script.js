@@ -8,8 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const taskInput = document.getElementById("taskInput");
   const logoutButton = document.getElementById("logoutButton");
 
-  //const io = require("socket.io-client");
-  //const socket = io();
+  // const io = require("socket.io-client");
+  // const socket = io("wss://localhost:5000");
 
   // przycisk wylogowania
   if (logoutButton) {
@@ -30,9 +30,8 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ title: taskText }),
       })
         .then((response) => response.json())
-        .then((newTask) => {
+        .then(() => {
           taskInput.value = "";
-          addTaskToDOM(newTask);
         })
         .catch((error) => console.error("Error adding task:", error));
     });
@@ -206,17 +205,17 @@ document.addEventListener("DOMContentLoaded", () => {
       .catch((error) => console.error("Error loading tasks:", error));
   }
 
-  // nasłuchiwanie zdarzenia "todo created" z backendu
-  //socket.on("todo created", (task) => {
-  //if (!document.getElementById(`task-${task.id}`)) {
-  //  addTaskToDOM(task);
-  //}
-  //});
+  // // nasłuchiwanie zdarzenia "todo created" z backendu
+  // socket.on("todo created", (task) => {
+  //   if (!document.getElementById(`task-${task.id}`)) {
+  //     addTaskToDOM(task);
+  //   }
+  // });
 
-  // nasłuchiwanie zdarzenia "todo deleted" z backendu
-  //socket.on("todo deleted", (task) => {
-  //removeTaskFromDOM(task.id);
-  //});
+  // // nasłuchiwanie zdarzenia "todo deleted" z backendu
+  // socket.on("todo deleted", (task) => {
+  //   removeTaskFromDOM(task.id);
+  // });
 
   // pobieramy zadania z backendu po załadowaniu strony
   loadSessions();
