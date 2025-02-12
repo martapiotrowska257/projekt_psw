@@ -19,6 +19,12 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 #  region MODELE
 # ---------------------------
 
+# tabela łącząca użytkowników z sesjami (relacja wiele do wielu)
+user_sessions = db.Table('user_sessions',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('session_id', db.Integer, db.ForeignKey('session.id'), primary_key=True)
+)
+
 # MODEL ZADANIA – dane przechowywane w bazie
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -35,13 +41,25 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-
-    # id sesji, w której aktualnie znajduje się użytkownik
+    
+    # aktualna sesja użytkownika
     current_session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=True)
-
-    # sesje stworzone przez użytkownika
-    sessions = db.relationship('Session', back_populates='owner', cascade="all, delete-orphan")
-
+    
+    # sesje, które użytkownik utworzył (relacja 1-do-wielu)
+    owned_sessions = db.relationship(
+        'Session',
+        back_populates='owner',
+        cascade="all, delete-orphan",
+        foreign_keys=lambda: [Session.owner_id]
+    )
+    
+    # sesje, do których użytkownik dołączył (relacja wiele-do-wielu)
+    joined_sessions = db.relationship(
+        'Session',
+        secondary=user_sessions,
+        back_populates='joined_users'
+    )
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
@@ -49,25 +67,29 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
 
-# tabela łącząca użytkowników z sesjami (relacja wiele do wielu)
-user_sessions = db.Table('user_sessions',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
-    db.Column('session_id', db.Integer, db.ForeignKey('session.id'))
-)
-
 # MODEL SESJI - dane przechowywane w bazie
 class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False) # nazwa sesji
-    is_private = db.Column(db.Boolean, default=True) # czy sesja jest prywatna
-
+    name = db.Column(db.String(100), nullable=False)
+    is_private = db.Column(db.Boolean, default=True)
+    
     # właściciel sesji
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    owner = db.relationship('User', back_populates='sessions')
-
+    owner = db.relationship(
+        'User',
+        back_populates='owned_sessions',
+        foreign_keys=[owner_id]
+    )
+    
     # zadania przypisane do sesji
     tasks = db.relationship('Task', back_populates='session', cascade="all, delete-orphan")
-    users = db.relationship('User', secondary=user_sessions, back_populates='sessions')
+    
+    # użytkownicy, którzy dołączyli do sesji (relacja wiele-do-wielu)
+    joined_users = db.relationship(
+        'User',
+        secondary=user_sessions,
+        back_populates='joined_sessions'
+    )
 
 
 # tworzenie tabeli zadań i użytkowników w bazie
@@ -78,9 +100,6 @@ with app.app_context():
 # endregion MODELE
 # ---------------------------
 
-
-# tasks = [] # pusta lista, w której będą przechowywane zadania
-# next_id = 1 # licznik do nadawania kolejnych identyfikatorów zadań
 
 # ---------------------------
 # Rejestracja
@@ -122,7 +141,7 @@ def login():
     
     session['username'] = username
     session.permanent = True
-    return redirect(url_for('index'))
+    return redirect(url_for('get_sessions'))
 
 # ---------------------------
 # Wylogowanie
@@ -135,11 +154,32 @@ def logout():
 
 
 # ---------------------------
-# region WYBÓR SESJI - PRYWATNA / GRUPOWA
+# region SESJE - PRYWATNA / GRUPOWA
 # ---------------------------
 
-@app.route('/sessions', methods=['GET', 'POST'])
-def choose_session():
+# pobieranie wszystkich sesji
+@app.route('/sessions', methods=['GET'])
+def get_sessions():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.filter_by(username=session['username']).first()
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # łączymy sesje, które użytkownik utworzył oraz te, do których dołączył
+    all_sessions = user.owned_sessions + user.joined_sessions
+    return jsonify([{
+        'id': s.id,
+        'name': s.name,
+        'is_private': s.is_private,
+        'owner_id': s.owner_id
+    } for s in all_sessions])
+
+
+# tworzenie nowej sesji
+@app.route('/sessions', methods=['POST'])
+def create_session():
     if 'username' not in session:
         return redirect(url_for('login'))
     
@@ -147,43 +187,65 @@ def choose_session():
     if user is None:
         return jsonify({'error': 'User not found'}), 404
 
-    if request.method == 'GET':
-        # Pobieramy sesje użytkownika (te, które stworzył + do których dołączył)
-        user_sessions = [{
-            'id': s.id,
-            'name': s.name,
-            'is_private': s.is_private,
-            'owner_id': s.owner_id
-        } for s in user.sessions + user.joined_sessions]
-
-        return jsonify({'sessions': user_sessions})
-    
     data = request.get_json()
-
     session_name = data.get('name')
     session_type = data.get('type')
 
     if session_type not in ['private', 'group']:
         return jsonify({'error': 'Invalid session type'}), 400
-    
-    if request.method == 'POST':
-        # Tworzenie nowej sesji
-        is_private = True if session_type == 'private' else False
-        new_session = Session(name=session_name, is_private=is_private, owner=user)
-        
-        # Jeśli sesja jest publiczna, dodajemy użytkownika do niej
-        if not is_private:
-            new_session.users.append(user)
 
-        db.session.add(new_session)
+    is_private = True if session_type == 'private' else False
+    new_session = Session(name=session_name, is_private=is_private, owner=user)
+
+    # jeśli sesja jest grupowa, dodajemy właściciela do listy użytkowników
+    if not is_private:
+        new_session.users.append(user)
+
+    db.session.add(new_session)
+    db.session.commit()
+
+    # opcjonalnie: ustawiamy current_session_id dla użytkownika, jeśli to prywatna sesja
+    if is_private:
+        user.current_session_id = new_session.id
         db.session.commit()
 
-        return jsonify({
-            'id': new_session.id,
-            'name': new_session.name,
-            'is_private': new_session.is_private,
-            'owner_id': new_session.owner_id
-        }), 201
+    return jsonify({
+        'id': new_session.id,
+        'name': new_session.name,
+        'is_private': new_session.is_private,
+        'owner_id': new_session.owner_id
+    }), 201
+
+
+# dołączanie do sesji grupowej
+@app.route('/sessions/<int:session_id>/join', methods=['POST'])
+def join_session(session_id):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    user = User.query.filter_by(username=session['username']).first()
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    session_to_join = Session.query.get(session_id)
+    if session_to_join is None:
+        return jsonify({'error': 'Session not found'}), 404
+
+    if session_to_join.is_private:
+        return jsonify({'error': 'Cannot join private session'}), 403
+
+    if user in session_to_join.joined_users:
+        return jsonify({'error': 'User already joined this session'}), 400
+
+    session_to_join.joined_users.append(user)
+    db.session.commit()
+
+    return jsonify({
+        'id': session_to_join.id,
+        'name': session_to_join.name,
+        'is_private': session_to_join.is_private,
+        'owner_id': session_to_join.owner_id
+    }), 200
 
 
 # ---------------------------
@@ -213,36 +275,56 @@ def choose_session():
 # Tworzenie nowego zadania
 @app.route('/todos', methods=['POST'])
 def create_todo():
-    # global next_id
     data = request.get_json()
     title = data.get('title')
     if not title:
         return jsonify({'error': 'Brakuje tytułu zadania'}), 400
     
-    # szukanie użytkownika w bazie
+    # szukamy użytkownika w bazie
     user = User.query.filter_by(username=session['username']).first()
 
+    # sprawdzamy, czy użytkownik ma ustawioną aktualną sesję
+    if not user or not user.current_session_id:
+        return jsonify({'error': 'Użytkownik nie ma ustawionej sesji'}), 401
+
     # tworzenie nowego zadania w bazie
-    new_task = Task(title=title, user_id=user.id)
+    new_task = Task(title=title, session_id=user.current_session_id)
     db.session.add(new_task)
     db.session.commit()
     
-    socketio.emit('todo created', {'id': new_task.id, 'title': new_task.title, 'completed': new_task.completed, 'user_id': new_task.user_id})
+    socketio.emit('todo created', {
+        'id': new_task.id,
+        'title': new_task.title,
+        'completed': new_task.completed,
+        'session_id': new_task.session_id
+    })
     print(f'Wysłano zadanie: {new_task}')
-    return jsonify({'id': new_task.id, 'title': new_task.title, 'completed': new_task.completed}), 201
+    return jsonify({
+        'id': new_task.id,
+        'title': new_task.title,
+        'completed': new_task.completed
+    }), 201
+
 
 # Pobieranie wszystkich zadań
 @app.route('/todos', methods=['GET'])
 def get_todos():
     user = User.query.filter_by(username=session['username']).first()
-    tasks = Task.query.filter_by(user_id=user.id).all()  # pobieramy zadania przypisane do użytkownika
-    return jsonify([{'id': task.id, 'title': task.title, 'completed': task.completed} for task in tasks])
+    if not user or not user.current_session_id:
+        return jsonify({'error': 'Użytkownik nie ma ustawionej sesji'}), 401
+    
+    tasks = Task.query.filter_by(session_id=user.current_session_id).all()
+    return jsonify([{
+        'id': task.id,
+        'title': task.title,
+        'completed': task.completed
+    } for task in tasks])
 
 # Pobieranie pojedynczego zadania
 @app.route('/todos/<int:task_id>', methods=['GET'])
 def get_todo(task_id):
     user = User.query.filter_by(username=session['username']).first()
-    task = Task.query.filter_by(id=task_id, user_id=user.id).first()  # sprawdzamy, czy zadanie należy do tego użytkownika
+    task = Task.query.filter_by(id=task_id, session_id=user.current_session_id).first()
     if task is None:
         return jsonify({'error': 'Nie znaleziono zadania'}), 404
     return jsonify({'id': task.id, 'title': task.title, 'completed': task.completed})
@@ -252,22 +334,24 @@ def get_todo(task_id):
 def update_todo(task_id):
     data = request.get_json()
     user = User.query.filter_by(username=session['username']).first()
-    task = Task.query.filter_by(id=task_id, user_id=user.id).first()
+    task = Task.query.filter_by(id=task_id, session_id=user.current_session_id).first()
     if task is None:
         return jsonify({'error': 'Nie znaleziono zadania'}), 404
     
     title = data.get('title')
     completed = data.get('completed')
-
     if title is not None:
         task.title = title
     if completed is not None:
         task.completed = completed
-
-    db.session.commit()  # Zapisujemy zmiany w bazie danych
-
-
-    socketio.emit('todo updated', {'id': task.id, 'title': task.title, 'completed': task.completed, 'user_id': task.user_id})
+    db.session.commit()
+    
+    socketio.emit('todo updated', {
+        'id': task.id,
+        'title': task.title,
+        'completed': task.completed,
+        'session_id': task.session_id
+    })
     print(f'Zmieniono status zadania: {task}')
     return jsonify({'id': task.id, 'title': task.title, 'completed': task.completed})
 
@@ -275,14 +359,19 @@ def update_todo(task_id):
 @app.route('/todos/<int:task_id>', methods=['DELETE'])
 def delete_todo(task_id):
     user = User.query.filter_by(username=session['username']).first()
-    task = Task.query.filter_by(id=task_id, user_id=user.id).first()
+    task = Task.query.filter_by(id=task_id, session_id=user.current_session_id).first()
     if task is None:
         return jsonify({'error': 'Nie znaleziono zadania'}), 404
     
     db.session.delete(task)  # Usuwamy zadanie z bazy danych
     db.session.commit()
     
-    socketio.emit('todo deleted', {'id': task.id, 'title': task.title, 'completed': task.completed, 'user_id': task.user_id})
+    socketio.emit('todo deleted', {
+        'id': task.id,
+        'title': task.title,
+        'completed': task.completed,
+        'session_id': task.session_id
+    })
     print(f'Usunięto zadanie: {task}')
     return jsonify({'id': task.id, 'title': task.title, 'completed': task.completed})
 
