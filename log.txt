@@ -2,3 +2,26 @@ Wysłano zadanie o tytule task2 i id 12
 New session created: iiii
 Wysłano zadanie o tytule ooo i id 13
 Wysłano zadanie o tytule ppp i id 14
+Wysłano zadanie o tytule aaa i id 15
+Wysłano zadanie o tytule mmm i id 16
+Wysłano zadanie o tytule aaa i id 17
+Wysłano zadanie o tytule wer i id 18
+Wysłano zadanie o tytule rr i id 19
+Wysłano zadanie o tytule p i id 20
+Wysłano zadanie o tytule o i id 21
+Wysłano zadanie o tytule d i id 22
+Wysłano zadanie o tytule eeeeeeeee i id 23
+Wysłano zadanie o tytule pppppppppp i id 24
+Wysłano zadanie o tytule i i id 25
+Wysłano zadanie o tytule r i id 26
+Wysłano zadanie o tytule pp i id 27
+New session created: sesja1
+Wysłano zadanie o tytule task1 i id 1
+New session created: sesja2
+Wysłano zadanie o tytule task2 i id 2
+New session created: sesja_publiczna
+Wysłano zadanie o tytule task3 i id 3
+Wysłano zadanie o tytule task4 i id 4
+New session created: sesja4
+Wysłano zadanie o tytule task1 i id 5
+Wysłano zadanie o tytule task2 i id 6

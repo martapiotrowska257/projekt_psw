@@ -293,12 +293,12 @@ def create_todo():
     db.session.add(new_task)
     db.session.commit()
     
-    socketio.emit('todo created', {
-        'id': new_task.id,
-        'title': new_task.title,
-        'completed': new_task.completed,
-        'session_id': new_task.session_id
-    })
+    # socketio.emit('todo created', {
+    #     'id': new_task.id,
+    #     'title': new_task.title,
+    #     'completed': new_task.completed,
+    #     'session_id': new_task.session_id
+    # })
 
     with open('log.txt', 'a') as file:
         file.write(f'Wysłano zadanie o tytule {new_task.title} i id {new_task.id}\n')

@@ -30,8 +30,9 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ title: taskText }),
       })
         .then((response) => response.json())
-        .then(() => {
+        .then((newTask) => {
           taskInput.value = "";
+          addTaskToDOM(newTask);
         })
         .catch((error) => console.error("Error adding task:", error));
     });
